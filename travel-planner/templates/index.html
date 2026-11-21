@@ -4,30 +4,139 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Away Game Travel Planner</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231d4ed8'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">Away Game Travel Planner</div>
+    <div id="whoami" class="who" hidden>
+      <span id="who-name"></span>
+      <button id="signout" class="link" type="button">Sign out</button>
+    </div>
+  </header>
+
   <main>
-    <h1>Away Game Travel Planner</h1>
-    <p class="sub">Enter the trip details. We calculate every package, then Aivana recommends the best one.</p>
+    <p id="flash" class="flash" role="status" hidden></p>
 
-    <form id="trip-form">
-      <label>Opponent <input name="opponent" required></label>
-      <label>Game date <input name="date" type="date" required></label>
-      <label>Destination <input name="destination" placeholder="City"></label>
-      <label>Distance one-way (miles) <input name="distance_miles" type="number" min="1" value="120"></label>
-      <label>Players <input name="num_players" type="number" min="0" value="26" required></label>
-      <label>Coaches <input name="num_coaches" type="number" min="0" value="4" required></label>
-      <label>Staff <input name="num_staff" type="number" min="0" value="3" required></label>
-      <label>Hotel nights <input name="nights" type="number" min="0" value="1"></label>
-      <label>Can't leave before <input name="earliest_departure" type="time"></label>
-      <button type="submit">Plan trip</button>
-    </form>
+    <!-- Sign in -->
+    <section id="view-auth" class="view narrow" hidden>
+      <h1>Plan away trips as a team</h1>
+      <p class="sub">The coach picks the venue. The planner prices every hotel, restaurant and bus combination, Aivana recommends one, and players see where they're going.</p>
+      <div id="demo-box" class="card" hidden>
+        <h2>Demo mode</h2>
+        <p class="sub">Supabase isn't configured on this server, so data lives in memory and resets on restart.</p>
+        <div class="row">
+          <button type="button" data-demo="demo-coach">Try as coach</button>
+          <button type="button" class="secondary" data-demo="demo-player">Try as player</button>
+        </div>
+      </div>
+      <form id="auth-form" class="card stack" hidden>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" class="tab" data-mode="signin" aria-selected="true">Sign in</button>
+          <button type="button" role="tab" class="tab" data-mode="signup" aria-selected="false">Create account</button>
+        </div>
+        <label>Email <input name="email" type="email" autocomplete="email" required></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" minlength="6" required></label>
+        <button type="submit" id="auth-submit">Sign in</button>
+      </form>
+    </section>
 
-    <p id="status" role="status"></p>
-    <section id="recommendation" hidden></section>
-    <section id="results"></section>
+    <!-- First-time setup -->
+    <section id="view-onboard" class="view narrow" hidden>
+      <h1>Set up your account</h1>
+      <form id="onboard-form" class="card stack">
+        <label>Your name <input name="full_name" required autocomplete="name"></label>
+        <fieldset class="choice">
+          <legend>I am a</legend>
+          <label><input type="radio" name="role" value="coach" checked> Coach</label>
+          <label><input type="radio" name="role" value="player"> Player</label>
+        </fieldset>
+        <div data-for="coach" class="stack">
+          <label>Team name <input name="team_name" placeholder="BGSU Falcons"></label>
+          <label>Home campus (where the bus leaves) <input name="home_name" value="Doyt L. Perry Stadium (BGSU)"></label>
+          <div class="row2">
+            <label>Latitude <input name="home_lat" type="number" step="any" value="41.37806"></label>
+            <label>Longitude <input name="home_lng" type="number" step="any" value="-83.6225"></label>
+          </div>
+        </div>
+        <div data-for="player" class="stack" hidden>
+          <label>Team join code <input name="join_code" placeholder="FALCON-1234" autocapitalize="characters"></label>
+          <fieldset class="choice"><legend>Dietary needs</legend><div class="diet-boxes"></div></fieldset>
+        </div>
+        <button type="submit">Continue</button>
+      </form>
+    </section>
+
+    <!-- Coach -->
+    <section id="view-coach" class="view" hidden>
+      <div class="split">
+        <aside class="stack">
+          <div class="card">
+            <h2 id="team-name"></h2>
+            <p class="sub">Players join with this code:</p>
+            <p class="code" id="join-code"></p>
+            <p class="sub" id="roster-line"></p>
+          </div>
+          <div class="card stack">
+            <div class="row between"><h2>Trips</h2><button type="button" id="new-trip-btn" class="small">New trip</button></div>
+            <ul id="trip-list" class="list"></ul>
+          </div>
+        </aside>
+        <div id="coach-main" class="stack">
+          <form id="trip-form" class="card stack" hidden>
+            <h2>New away trip</h2>
+            <div class="grid">
+              <label>Opponent <input name="opponent" required></label>
+              <label>Away venue <select name="venue_id" id="venue-select" required></select></label>
+              <label>Match date and time <input name="match_at" type="datetime-local" required></label>
+              <label>Bus can't leave before <input name="depart_after" type="datetime-local"></label>
+              <label>Hotel nights <input name="nights" type="number" min="0" value="1"></label>
+              <label>Team meals <input name="meals" type="number" min="0" value="2"></label>
+              <label>Budget (USD) <input name="budget" type="number" min="0" step="50" value="9000"></label>
+              <label>Players <input name="num_players" type="number" min="0"></label>
+              <label>Coaches <input name="num_coaches" type="number" min="0" value="3"></label>
+              <label>Staff <input name="num_staff" type="number" min="0" value="2"></label>
+            </div>
+            <div class="row"><button type="submit">Price the packages</button><button type="button" class="secondary" id="trip-cancel">Cancel</button></div>
+          </form>
+          <div id="trip-detail" class="stack"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Player -->
+    <section id="view-player" class="view" hidden>
+      <div class="split">
+        <aside class="stack">
+          <div class="card stack">
+            <h2 id="p-team"></h2>
+            <fieldset class="choice"><legend>My dietary needs</legend><div class="diet-boxes" id="my-diet"></div></fieldset>
+            <button type="button" class="small" id="save-diet">Save</button>
+          </div>
+        </aside>
+        <div class="stack">
+          <h2>My trips</h2>
+          <div id="player-trips" class="stack"></div>
+          <h2>Announcements</h2>
+          <div id="feed" class="stack"></div>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <dialog id="menu-dialog">
+    <form method="dialog" class="stack">
+      <div class="row between"><h2 id="menu-title">Menu</h2><button class="link" value="close">Close</button></div>
+      <div class="chips" id="menu-filters"></div>
+      <ul id="menu-items" class="list"></ul>
+    </form>
+  </dialog>
+
+  <script>window.APP_CONFIG = {{ config | tojson }};</script>
+  {% if not config.demo %}
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  {% endif %}
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

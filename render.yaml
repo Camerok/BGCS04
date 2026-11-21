@@ -1,0 +1,23 @@
+# Render Blueprint: New > Blueprint > pick this repo. Fill the secret values in Render's dashboard.
+services:
+  - type: web
+    name: away-game-travel-planner
+    runtime: python
+    plan: free
+    rootDir: travel-planner
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 60
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SUPABASE_URL
+        value: https://mucqewiinntpqhdhektw.supabase.co
+      - key: SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_M9cHcbdY7gSqHN0QhZ0j9w_MDmnbpRU
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: AIVANA_API_KEY
+        sync: false
+      - key: AIVANA_API_URL
+        sync: false

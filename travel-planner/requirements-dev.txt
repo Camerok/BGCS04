@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest
+# for data/build_dataset.ipynb
+pandas
+numpy
+ipykernel
